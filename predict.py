@@ -6,6 +6,7 @@ from typing import Optional
 import torch
 import gc
 import pillow_avif
+import subprocess
 from cog import BasePredictor, Input, Path as CogPath
 from huggingface_hub import snapshot_download
 from pillow_heif import register_heif_opener
@@ -21,19 +22,13 @@ class ModelVersion:
     STAGE_2 = "aes_stage2"
     DEFAULT_VERSION = STAGE_2
 
+
+
 class Predictor(BasePredictor):
     def setup(self) -> None:
         """Load the model into memory to make running multiple predictions efficient"""
-        # Download models
-        snapshot_download(repo_id='ByteDance/InfiniteYou', local_dir='./models/InfiniteYou', local_dir_use_symlinks=False)
-        try:
-            snapshot_download(repo_id='black-forest-labs/FLUX.1-dev', local_dir='./models/FLUX.1-dev', local_dir_use_symlinks=False)
-        except Exception as e:
-            print(e)
-            print('\nYou are downloading `black-forest-labs/FLUX.1-dev` to `./models/FLUX.1-dev` but failed. '
-                'Please accept the agreement and obtain access at https://huggingface.co/black-forest-labs/FLUX.1-dev. '
-                'Then, use `huggingface-cli login` and your access tokens at https://huggingface.co/settings/tokens to authenticate.')
-            raise
+        subprocess.check_output(["pget", "https://storage.googleapis.com/replicate-hf-weights/infiniteyou/models.tar", "models.tar"], close_fds=True)
+        subprocess.check_output(["tar", "-xvf", "models.tar"])
 
         # Initialize the pipeline with default configuration
         self.model_version = ModelVersion.DEFAULT_VERSION
