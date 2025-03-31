@@ -4,6 +4,7 @@
 build:
   # This model requires a GPU
   gpu: true
+  cuda: "12.4"
 
   # Required system packages for OpenCV and other dependencies
   system_packages:

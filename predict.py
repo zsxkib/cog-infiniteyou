@@ -27,8 +27,8 @@ class ModelVersion:
 class Predictor(BasePredictor):
     def setup(self) -> None:
         """Load the model into memory to make running multiple predictions efficient"""
-        subprocess.check_output(["pget", "https://storage.googleapis.com/replicate-hf-weights/infiniteyou/models.tar", "models.tar"], close_fds=True)
-        subprocess.check_output(["tar", "-xvf", "models.tar"])
+        # subprocess.check_output(["pget", "https://storage.googleapis.com/replicate-hf-weights/infiniteyou/models.tar", "models.tar"], close_fds=True)
+        # subprocess.check_output(["tar", "-xvf", "models.tar"])
 
         # Initialize the pipeline with default configuration
         self.model_version = ModelVersion.DEFAULT_VERSION
@@ -94,7 +94,7 @@ class Predictor(BasePredictor):
             description="Describe how you want the generated image to look. Be specific about details, style, background, etc.", 
             default="Portrait, 4K, high quality, cinematic"
         ),
-        control_image: CogPath = Input(
+        control_image: Optional[CogPath] = Input(
             description="Optional: Upload a second image to control the pose/position of the face in the output", 
             default=None
         ),
@@ -146,6 +146,13 @@ class Predictor(BasePredictor):
             default=False
         ),
         
+        output_format: str = Input(
+            description="Choose the format of the output image", choices=["png", "jpg", "webp"], default="webp"
+        ),
+        output_quality: int = Input(
+            description="Set the quality of the output image for jpg and webp (1-100)", ge=1, le=100, default=80
+        ),
+        
         # Advanced parameters (typically don't need adjustment)
         infusenet_conditioning_scale: float = Input(
             description="Advanced: Controls how strongly the identity image affects generation (lower values = less identity preservation)", 
@@ -174,6 +181,7 @@ class Predictor(BasePredictor):
         # Use random seed if None is provided
         if seed is None:
             seed = torch.seed() & 0xFFFFFFFF
+        print(f"Using seed: {seed}") # Log the seed being used
             
         # Open the image files before passing them to the pipeline
         id_img = Image.open(id_image)
@@ -194,9 +202,28 @@ class Predictor(BasePredictor):
             infusenet_guidance_end=infusenet_guidance_end,
         )
         
-        # Save the output image - use a string path first
-        output_path_str = "/tmp/output.png"
-        output_image.save(output_path_str)
+        # Before saving, ensure image is in RGB mode
+        if output_image.mode != 'RGB':
+            output_image = output_image.convert('RGB')
+        
+        # Prepare saving arguments
+        extension = output_format.lower()
+        if extension == "jpg":
+            extension = "jpeg" # PIL uses 'jpeg'
+            
+        output_path_str = f"/tmp/output.{extension}"
+        save_kwargs = {}
+        if extension in ["jpeg", "webp"]:
+            save_kwargs["quality"] = output_quality
+            # optimize is useful for reducing file size, especially for jpeg
+            save_kwargs["optimize"] = True 
+            print(f"Saving as {extension.upper()} with quality {output_quality}")
+        else:
+             print(f"Saving as {extension.upper()}")
+
+
+        # Save the output image
+        output_image.save(output_path_str, **save_kwargs)
         
         # Return a CogPath object created from the saved file
         return CogPath(output_path_str)

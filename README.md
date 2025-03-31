@@ -17,11 +17,12 @@ Unlike other models, it doesn't just copy-paste your face - it rebuilds the enti
 
 ## How to Use
 
-### API Example
+### Python API Example
 
 ```python
 import replicate
 
+# Basic example
 output = replicate.run(
     "infiniteyou-flux",
     input={
@@ -31,7 +32,55 @@ output = replicate.run(
     }
 )
 
+# Advanced example with more parameters
+output = replicate.run(
+    "infiniteyou-flux",
+    input={
+        "id_image": "https://example.com/your-photo.jpg",
+        "prompt": "An elegant portrait in Renaissance style, ornate period clothing, dramatic lighting",
+        "model_version": "aes_stage2",
+        "width": 960,
+        "height": 1280,
+        "num_steps": 40,
+        "enable_realism": True,
+        "seed": 42
+    }
+)
+
+# Example with control image
+output = replicate.run(
+    "infiniteyou-flux",
+    input={
+        "id_image": "https://example.com/your-photo.jpg",
+        "control_image": "https://example.com/pose-reference.jpg",
+        "prompt": "A portrait, professional photography, high quality",
+        "model_version": "sim_stage1"
+    }
+)
+
 print(output)
+```
+
+### curl Example
+
+```bash
+# Remember to set your API token
+export REPLICATE_API_TOKEN=your_token_here
+
+# Basic example
+curl -s -X POST \
+  -H "Authorization: Bearer $REPLICATE_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Prefer: wait" \
+  -d '{
+    "version": "2dc4b4516683d3639c3648d3c34294913fc11dc28396cd60fd86df877a04381b",
+    "input": {
+      "id_image": "https://example.com/your-photo.jpg",
+      "prompt": "Portrait, 4K, high quality, cinematic",
+      "model_version": "aes_stage2"
+    }
+  }' \
+  https://api.replicate.com/v1/predictions
 ```
 
 ### Parameters
@@ -40,15 +89,20 @@ print(output)
 |-----------|-------------|---------|
 | id_image | Upload a portrait image containing a human face | Required |
 | prompt | Describe how you want the generated image to look | "Portrait, 4K, high quality, cinematic" |
-| control_image | Optional second image to control the pose/position | None |
+| control_image | Optional second image to control the pose/position. Omit this parameter entirely when not needed. | None |
 | model_version | Choose "aes_stage2" for better aesthetics or "sim_stage1" for higher identity similarity | "aes_stage2" |
-| width | Output image width in pixels | 864 |
-| height | Output image height in pixels | 1152 |
+| width | Output image width in pixels (recommended: 768, 864, or 960) | 864 |
+| height | Output image height in pixels (recommended: 960, 1152, or 1280) | 1152 |
 | num_steps | Number of diffusion steps (higher = better quality but slower) | 30 |
-| guidance_scale | How closely to follow the prompt | 3.5 |
-| seed | Random seed for reproducible results (0 for random) | 0 |
-| enable_realism | Apply the realism enhancement | false |
-| enable_anti_blur | Reduce blurriness in results | false |
+| guidance_scale | How closely to follow the prompt (higher = more prompt adherence) | 3.5 |
+| seed | Random seed for reproducible results (None for random generation) | None |
+| enable_realism | Apply the realism enhancement LoRA for more realistic results | false |
+| enable_anti_blur | Apply the anti-blur LoRA to reduce blurriness | false |
+| output_format | Choose the format of the output image (png, jpg, webp) | "webp" |
+| output_quality | Set the quality for jpg and webp (1-100) | 80 |
+| infusenet_conditioning_scale | Controls how strongly the identity image affects generation | 1.0 |
+| infusenet_guidance_start | When to start applying identity guidance (0.0-0.1 recommended) | 0.0 |
+| infusenet_guidance_end | When to stop applying identity guidance (usually keep at 1.0) | 1.0 |
 
 ## Tips for Best Results
 
@@ -57,6 +111,10 @@ print(output)
 3. **Choose the Right Model**:
    - Use `aes_stage2` for better text-image alignment and aesthetics
    - Use `sim_stage1` for stronger identity preservation
+4. **Experiment with Parameters**:
+   - Try adjusting `infusenet_guidance_start` to 0.1 for higher identity similarity
+   - For even more control, try slightly lowering `infusenet_conditioning_scale` to 0.9
+   - The `enable_realism` LoRA can improve photorealism
 
 ## Examples
 
