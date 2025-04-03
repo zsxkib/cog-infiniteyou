@@ -11,10 +11,20 @@ from cog import BasePredictor, Input, Path as CogPath
 from huggingface_hub import snapshot_download
 from pillow_heif import register_heif_opener
 from PIL import Image
+import time
+import subprocess
 
 from pipelines.pipeline_infu_flux import InfUFluxPipeline
 
-# Register HEIF support for Pillow
+# Define cache and checkpoint paths
+MODEL_CACHE = "models"
+
+os.environ["HF_HOME"] = MODEL_CACHE
+os.environ["TORCH_HOME"] = MODEL_CACHE
+os.environ["HF_DATASETS_CACHE"] = MODEL_CACHE
+os.environ["TRANSFORMERS_CACHE"] = MODEL_CACHE
+os.environ["HUGGINGFACE_HUB_CACHE"] = MODEL_CACHE
+
 register_heif_opener()
 
 class ModelVersion:
@@ -22,13 +32,42 @@ class ModelVersion:
     STAGE_2 = "aes_stage2"
     DEFAULT_VERSION = STAGE_2
 
+BASE_URL=  f"https://weights.replicate.delivery/default/infiniteyou/{MODEL_CACHE}/"
 
+def download_weights(url: str, dest: str) -> None:
+    start = time.time()
+    print("[!] Initiating download from URL: ", url)
+    print("[~] Destination path: ", dest)
+    if ".tar" in dest:
+        dest = os.path.dirname(dest)
+    command = ["pget", "-vf" + ("x" if ".tar" in url else ""), url, dest]
+    try:
+        print(f"[~] Running command: {' '.join(command)}")
+        subprocess.check_call(command, close_fds=False)
+    except subprocess.CalledProcessError as e:
+        print(
+            f"[ERROR] Failed to download weights. Command '{' '.join(e.cmd)}' returned non-zero exit status {e.returncode}."
+        )
+        raise
+    print("[+] Download completed in: ", time.time() - start, "seconds")
 
 class Predictor(BasePredictor):
     def setup(self) -> None:
         """Load the model into memory to make running multiple predictions efficient"""
-        # subprocess.check_output(["pget", "https://storage.googleapis.com/replicate-hf-weights/infiniteyou/models.tar", "models.tar"], close_fds=True)
-        # subprocess.check_output(["tar", "-xvf", "models.tar"])
+        # Create model cache directory if it doesn't exist
+        if not os.path.exists(MODEL_CACHE):
+            os.makedirs(MODEL_CACHE)
+            
+        model_files = [
+            "FLUX.1-dev.tar",
+            "InfiniteYou.tar"
+        ]
+        for model_file in model_files:
+            url = BASE_URL + model_file
+            filename = url.split("/")[-1]
+            dest_path = os.path.join(MODEL_CACHE, filename)
+            if not os.path.exists(dest_path.replace(".tar", "")):
+                download_weights(url, dest_path)
 
         # Initialize the pipeline with default configuration
         self.model_version = ModelVersion.DEFAULT_VERSION

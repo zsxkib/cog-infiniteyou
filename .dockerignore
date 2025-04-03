@@ -17,4 +17,4 @@ __pycache__
 /venv
 
 # Replicate
-models/*
+/models/*
