@@ -176,3 +176,6 @@ cython_debug/
 # Replicate
 .cog
 /models/*
+*.png
+*.jpg
+*.webp
